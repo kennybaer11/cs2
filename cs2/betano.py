@@ -56,7 +56,13 @@ def _get(path: str) -> dict:
     if r.status_code in (403, 429, 503) or "json" not in r.headers.get("content-type", ""):
         raise Blocked(f"{path}: HTTP {r.status_code}, {r.headers.get('content-type')}")
     r.raise_for_status()
-    return r.json()["data"]
+    body = r.json()
+    if "data" not in body:
+        # A league that has just ended answers {"errors": [], "errorCode": 301}:
+        # nothing on offer there, not a refusal.
+        log.warning("%s: no data (errorCode %s)", path, body.get("errorCode"))
+        return {}
+    return body["data"]
 
 
 def leagues() -> list[dict]:
