@@ -83,5 +83,14 @@ from then on; settle.py settles the tips with the lines.
 
 ## On the server
 
-`deploy/run_cs2.sh` in the posession repo runs all of it every three hours
-on the posession server: collect, teams, settle, odds, price, advice.
+`deploy/run_cs2.sh` in the posession repo runs every three hours on the
+posession server: collect, teams, settle, price, advice, notify.
+
+**Betano refuses the server** (HTTP 403 on every request, tennis too, since at
+least 6 Nov 2026), so its lines are fetched from the owner's PC, like the
+tennis Betano lines. This fetches the lines, prices them, writes the tips and
+tells Telegram:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File C:\Users\kenny\cs2\betano_local.ps1
+```
