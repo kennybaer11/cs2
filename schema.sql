@@ -178,3 +178,9 @@ CREATE TRIGGER advice_locked BEFORE UPDATE ON cs2.advice
   FOR EACH ROW EXECUTE FUNCTION cs2.advice_locked();
 CREATE OR REPLACE RULE advice_no_delete AS ON DELETE TO cs2.advice
   WHERE OLD.kickoff <= now() DO INSTEAD NOTHING;
+
+-- What Telegram was last told about a tip (notify.py). Not part of the tip,
+-- so the lock leaves these alone. told_bet is market|team|side|line.
+ALTER TABLE cs2.advice ADD COLUMN IF NOT EXISTS told_bet    TEXT;
+ALTER TABLE cs2.advice ADD COLUMN IF NOT EXISTS told_rating SMALLINT;
+ALTER TABLE cs2.advice ADD COLUMN IF NOT EXISTS told_at     TIMESTAMPTZ;
