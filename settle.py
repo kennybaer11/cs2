@@ -99,6 +99,33 @@ def main():
                             WHERE (bookmaker, event_id, market, map_num, team, side, line)
                                 = (%s,%s,%s,%s,%s,%s,%s)""", done)
         log.info("%d lines settled", len(done))
+
+        # The tips, by the same rule. The lock leaves these columns writable.
+        cur.execute("""
+            SELECT a.bookmaker, a.event_id, a.slot, a.market, a.team, a.side, a.line::float,
+                   e.swapped, mp.t1_rounds, mp.t2_rounds
+              FROM cs2.advice a
+              JOIN cs2.bk_event e USING (bookmaker, event_id)
+              LEFT JOIN cs2.map mp ON mp.match_id = e.match_id AND mp.map_num = a.map_num
+             WHERE a.result IS NULL AND e.match_id IS NOT NULL""")
+        tips = []
+        for bk, ev, slot, market, team, side, line, swapped, a, b in cur.fetchall():
+            if a is None:
+                res, actual = "void", None
+            else:
+                r1, r2 = (b, a) if swapped else (a, b)
+                res, actual = outcome(market, team, side, line, r1, r2)
+            tips.append((res, actual, bk, ev, slot))
+        cur.executemany("""UPDATE cs2.advice SET result=%s, actual=%s, settled_at=now()
+                            WHERE (bookmaker, event_id, slot) = (%s,%s,%s)""", tips)
+        # A tip whose match has no result five days on is void.
+        cur.execute("""
+            UPDATE cs2.advice a SET result = 'void', settled_at = now()
+              FROM cs2.bk_event e
+             WHERE (e.bookmaker, e.event_id) = (a.bookmaker, a.event_id)
+               AND a.result IS NULL AND e.match_id IS NULL
+               AND a.kickoff < now() - interval '5 days'""")
+        log.info("%d tips settled, %d voided for no result", len(tips), cur.rowcount)
     conn.commit()
     return 0
 

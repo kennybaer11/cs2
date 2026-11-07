@@ -122,3 +122,59 @@ ALTER TABLE cs2.priced ADD COLUMN IF NOT EXISTS result TEXT;
 ALTER TABLE cs2.priced ADD COLUMN IF NOT EXISTS actual INTEGER;   -- the stat the line is on
 ALTER TABLE cs2.priced ADD COLUMN IF NOT EXISTS settled_at TIMESTAMPTZ;
 ALTER TABLE cs2.priced ADD COLUMN IF NOT EXISTS other_price NUMERIC; -- the opposite side, same line
+
+-- The advice the site gave, as it stood when the match started - the CS2 twin
+-- of aces.advice. At most one tip per bookmaker match and map (slot map1...),
+-- the line the model rates best on that map: Betano's ladders offer a dozen
+-- correlated lines per map, and they would otherwise all be tips on one view.
+-- Rewritten by advice.py until kick-off, locked by the trigger below from then on.
+CREATE TABLE IF NOT EXISTS cs2.advice (
+  bookmaker        TEXT    NOT NULL,
+  event_id         TEXT    NOT NULL,
+  slot             TEXT    NOT NULL,     -- map1, map2, map3
+  kickoff          TIMESTAMPTZ NOT NULL,
+  league           TEXT,
+  team1            TEXT    NOT NULL,     -- the bookmaker's names and order
+  team2            TEXT    NOT NULL,
+  map_num          INTEGER NOT NULL,
+  market           TEXT    NOT NULL,     -- rounds, handicap, team_rounds
+  team             INTEGER NOT NULL DEFAULT 0,
+  side             TEXT    NOT NULL DEFAULT '',
+  line             NUMERIC NOT NULL DEFAULT 0,
+  odds             NUMERIC NOT NULL,
+  p_model          NUMERIC NOT NULL,     -- the model's chance, blended 3:1 with Betano's no-vig one
+  p_raw            NUMERIC NOT NULL,     -- the model's own chance
+  edge             NUMERIC NOT NULL,     -- p_model * odds - 1
+  rating           SMALLINT,             -- stake, tenths of a unit
+  backed           BOOLEAN NOT NULL,     -- false: advised, then withdrawn before kick-off
+  code_version     TEXT,
+  first_advised_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  advised_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+  result           TEXT,                 -- won | lost | void
+  actual           INTEGER,
+  settled_at       TIMESTAMPTZ,
+  placed           BOOLEAN NOT NULL DEFAULT false,
+  placed_at        TIMESTAMPTZ,
+  PRIMARY KEY (bookmaker, event_id, slot),
+  FOREIGN KEY (bookmaker, event_id) REFERENCES cs2.bk_event (bookmaker, event_id)
+);
+CREATE INDEX IF NOT EXISTS advice_kickoff_idx ON cs2.advice (kickoff);
+
+CREATE OR REPLACE FUNCTION cs2.advice_locked() RETURNS trigger AS $$
+BEGIN
+  IF OLD.kickoff <= now() AND
+     (NEW.market, NEW.team, NEW.side, NEW.line, NEW.odds, NEW.p_model, NEW.edge, NEW.backed,
+      NEW.kickoff, NEW.rating)
+       IS DISTINCT FROM
+     (OLD.market, OLD.team, OLD.side, OLD.line, OLD.odds, OLD.p_model, OLD.edge, OLD.backed,
+      OLD.kickoff, OLD.rating) THEN
+    RAISE EXCEPTION 'cs2.advice %/%/% is locked: the match started at %',
+      OLD.bookmaker, OLD.event_id, OLD.slot, OLD.kickoff;
+  END IF;
+  RETURN NEW;
+END $$ LANGUAGE plpgsql;
+DROP TRIGGER IF EXISTS advice_locked ON cs2.advice;
+CREATE TRIGGER advice_locked BEFORE UPDATE ON cs2.advice
+  FOR EACH ROW EXECUTE FUNCTION cs2.advice_locked();
+CREATE OR REPLACE RULE advice_no_delete AS ON DELETE TO cs2.advice
+  WHERE OLD.kickoff <= now() DO INSTEAD NOTHING;

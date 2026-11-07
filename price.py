@@ -24,7 +24,8 @@ import backtest
 from cs2 import model
 
 MIN_MAPS = 15
-DROP = re.compile(r"\b(team|esports?|e-sports|gaming|clan|club|gg|cs|academy)\b")
+# Words that only decorate a name. Not "academy": Spirit Academy is not Team Spirit.
+DROP = re.compile(r"\b(team|esports?|e-sports|gaming|clan|club|gg|cs)\b")
 
 
 def norm(name: str) -> str:

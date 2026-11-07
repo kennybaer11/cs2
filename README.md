@@ -69,7 +69,19 @@ no tips are given yet; the admin page shows every line and the scoreboard -
 the model's log-loss against Betano's own probability with its margin taken
 out, and flat-stake results on lines the model rated +10% or better.
 
+## Tips
+
+```bash
+python advice.py            # after price.py --store: cs2.advice, the tips on betken.cz/esport
+```
+
+The same rules as the tennis tips: the model's chance blended 3:1 with
+Betano's own (margin out), +10% value or more, odds 1.40-4.50, a price on both
+sides of the line, at most one tip per map, quarter-Kelly stakes shared per
+match. A tip is rewritten until its match starts and locked by the database
+from then on; settle.py settles the tips with the lines.
+
 ## On the server
 
 `deploy/run_cs2.sh` in the posession repo runs all of it every three hours
-on the posession server: collect, teams, settle, odds, price.
+on the posession server: collect, teams, settle, odds, price, advice.
