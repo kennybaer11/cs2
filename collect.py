@@ -78,7 +78,10 @@ def main():
             log.warning("%s: no page", page)
             continue
         t = tournament_row(page, lp.infobox(text))
-        if not is_cs2(t) or (t["start_date"] and t["start_date"] > today):
+        # An event's play-in or qualifying stage is a subpage played before the
+        # main event's own start date (NODWIN Clutch Series 14: play-in 2-8 Nov,
+        # main event from 10 Nov), so events starting within two weeks are read.
+        if not is_cs2(t) or (t["start_date"] and t["start_date"] > today + timedelta(days=14)):
             continue
         settled = bool(t["end_date"]) and t["end_date"] < today - timedelta(days=7)
         subs = [s for s in lp.subpages(page) if "/Qualifier" not in s and "/Open" not in s]
