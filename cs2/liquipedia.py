@@ -79,12 +79,30 @@ def _call(params: dict, cache_key: str | None = None) -> dict:
 # ---------------------------------------------------------------- tier lists
 
 TIER_PAGES = {1: ["S-Tier_Tournaments/Post_2023"], 2: ["A-Tier_Tournaments/Post_2023"],
-              3: ["B-Tier_Tournaments/2024", "B-Tier_Tournaments/2025", "B-Tier_Tournaments/2026"]}
+              3: ["B-Tier_Tournaments/2024", "B-Tier_Tournaments/2025", "B-Tier_Tournaments/2026"],
+              # C-tier from mid-2025 (ESL Challenger League cups and the like):
+              # enough history to rate its teams, and Betano prices its matches.
+              4: ["C-Tier_Tournaments/2025_Q3", "C-Tier_Tournaments/2025_Q4"]
+                 + [f"C-Tier_Tournaments/{y}_Q{q}" for y in range(2026, date.today().year + 1)
+                    for q in range(1, 5)]}
+
+
+def _list_is_past(page: str) -> bool:
+    """A year or quarter list that ended before today's quarter never changes,
+    so its rendering can be cached - each one is a 30-second parse call."""
+    m = re.search(r"/(\d{4})(?:_Q(\d))?$", page)
+    if not m:
+        return False
+    year, q = int(m[1]), int(m[2] or 4)
+    today = date.today()
+    return (year, q) < (today.year, (today.month - 1) // 3 + 1) and year < today.year + 1 \
+        and not (m[2] is None and year == today.year)
 
 
 def tier_list(tier: int) -> list[str]:
-    """Titles of the tournaments on a tier's list page, as linked."""
-    html = "".join(_call({"action": "parse", "page": page, "prop": "text"})["parse"]["text"]
+    """Titles of the tournaments on a tier's list pages, as linked."""
+    html = "".join(_call({"action": "parse", "page": page, "prop": "text"},
+                         cache_key=("list|" + page) if _list_is_past(page) else None)["parse"]["text"]
                    for page in TIER_PAGES[tier])
     titles = re.findall(r'class="column&#95;&#95;tournament"[^>]*>\s*<a href="/counterstrike/([^"]+)"',
                         html)

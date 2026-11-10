@@ -79,7 +79,7 @@ def score_dist(m: float, kappa: float) -> np.ndarray:
 class Params:
     k: float = 0.006              # learning rate per round (tune.py: best on 2025, held on 2026)
     kappa: float = 22.0           # Beta concentration: larger = less spread between maps
-    prior: dict = field(default_factory=lambda: {1: 0.25, 2: 0.1, 3: 0.0, None: -0.1})
+    prior: dict = field(default_factory=lambda: {1: 0.25, 2: 0.1, 3: 0.0, 4: -0.1, None: -0.1})
 
 
 class Ratings:

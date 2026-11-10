@@ -1,6 +1,6 @@
 """Collect CS2 map results from Liquipedia into the cs2 schema.
 
-    python collect.py                  # S, A and B tier, every CS2 event so far
+    python collect.py                  # S, A, B tier since 2024 and C tier since mid-2025
     python collect.py --tiers 1,2      # S and A only
     python collect.py --dry-run        # parse and count, write nothing
 
@@ -41,7 +41,7 @@ def is_cs2(t: dict) -> bool:
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--tiers", default="1,2,3")
+    ap.add_argument("--tiers", default="1,2,3,4")
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--limit", type=int, help="stop after this many tournaments (testing)")
     args = ap.parse_args()
@@ -96,7 +96,7 @@ def main():
         total_maps += maps
         log.info("[%d/%d] %s (tier %s, %s): %d matches, %d maps", n, len(todo), page, t["tier"],
                  t["start_date"], len(ms), maps)
-        if conn and ms:
+        if conn and (ms or settled):
             db.save_tournament(conn, t, ms)
     log.info("done: %d matches, %d maps", total_m, total_maps)
     return 0

@@ -17,11 +17,12 @@ def connect():
 
 
 def finished_tournaments(conn) -> set[str]:
-    """Tournaments over for more than a week, with matches stored: never re-read."""
+    """Tournaments over for more than a week: never re-read. One stored with no
+    matches (cancelled, or never filled in) counts too - with C-tier there are
+    hundreds, and re-reading each on every run would take minutes."""
     with conn.cursor() as cur:
         cur.execute("""SELECT t.page FROM cs2.tournament t
-                        WHERE t.end_date < current_date - 7
-                          AND EXISTS (SELECT 1 FROM cs2.match m WHERE m.tournament = t.page)""")
+                        WHERE t.end_date < current_date - 7""")
         return {r[0] for r in cur.fetchall()}
 
 
