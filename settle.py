@@ -19,6 +19,25 @@ from cs2 import db
 
 log = logging.getLogger("settle")
 
+# Bookmaker matches whose series is decided: one team has won a majority of
+# the maps it is played over. Liquipedia fills a match in map by map while it
+# is played, so without this a run in the middle of a best-of-three voided
+# map 3 as "not played" (Spirit v FUT, MOUZ v G2, 11 Nov 2026). The length
+# comes from Liquipedia when it gives one, else from the highest map number
+# the bookmaker priced (3 for a best-of-three, 1 for a best-of-one).
+DECIDED = """
+    (e.bookmaker, e.event_id) IN (
+        SELECT e2.bookmaker, e2.event_id
+          FROM cs2.bk_event e2
+          JOIN cs2.match m2 ON m2.match_id = e2.match_id
+          JOIN (SELECT match_id,
+                       count(*) FILTER (WHERE t1_rounds > t2_rounds) AS w1,
+                       count(*) FILTER (WHERE t2_rounds > t1_rounds) AS w2
+                  FROM cs2.map GROUP BY match_id) w ON w.match_id = e2.match_id
+         WHERE greatest(w.w1, w.w2) >= coalesce(m2.bestof,
+                   (SELECT max(o.map_num) FROM cs2.odds o
+                     WHERE (o.bookmaker, o.event_id) = (e2.bookmaker, e2.event_id)), 3) / 2 + 1)"""
+
 
 def outcome(market: str, team: int, side: str, line: float, r1: int, r2: int):
     """(result, actual) for one line, rounds of bookmaker team 1 and 2 given."""
@@ -84,7 +103,7 @@ def main():
               FROM cs2.priced p
               JOIN cs2.bk_event e USING (bookmaker, event_id)
               LEFT JOIN cs2.map mp ON mp.match_id = e.match_id AND mp.map_num = p.map_num
-             WHERE p.result IS NULL AND e.match_id IS NOT NULL""")
+             WHERE p.result IS NULL AND e.match_id IS NOT NULL AND """ + DECIDED)
         rows = cur.fetchall()
         done = []
         for bk, ev, market, map_num, team, side, line, swapped, a, b in rows:
@@ -107,7 +126,7 @@ def main():
               FROM cs2.advice a
               JOIN cs2.bk_event e USING (bookmaker, event_id)
               LEFT JOIN cs2.map mp ON mp.match_id = e.match_id AND mp.map_num = a.map_num
-             WHERE a.result IS NULL AND e.match_id IS NOT NULL""")
+             WHERE a.result IS NULL AND e.match_id IS NOT NULL AND """ + DECIDED)
         tips = []
         for bk, ev, slot, market, team, side, line, swapped, a, b in cur.fetchall():
             if a is None:

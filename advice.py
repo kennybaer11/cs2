@@ -118,7 +118,17 @@ def main():
              WHERE backed AND kickoff > now() AND NOT placed
                AND NOT (bookmaker || '|' || event_id || '|' || slot = ANY(%s))""", (keep,))
         withdrawn = cur.rowcount
-    print(f"{len(best)} tips on {len(by_match)} matches, {withdrawn} withdrawn")
+
+        # The start time is not part of the bet: a placed tip or one no longer
+        # advised still follows the bookmaker's (the Major's matches moved
+        # from 10:00 to 05:00-08:00 Prague), so the lock falls at the real start.
+        cur.execute("""
+            UPDATE cs2.advice a SET kickoff = e.kickoff
+              FROM cs2.bk_event e
+             WHERE (e.bookmaker, e.event_id) = (a.bookmaker, a.event_id)
+               AND a.kickoff > now() AND a.kickoff <> e.kickoff""")
+        moved = cur.rowcount
+    print(f"{len(best)} tips on {len(by_match)} matches, {withdrawn} withdrawn, {moved} start times moved")
     return 0
 
 
