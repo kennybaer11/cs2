@@ -184,3 +184,10 @@ CREATE OR REPLACE RULE advice_no_delete AS ON DELETE TO cs2.advice
 ALTER TABLE cs2.advice ADD COLUMN IF NOT EXISTS told_bet    TEXT;
 ALTER TABLE cs2.advice ADD COLUMN IF NOT EXISTS told_rating SMALLINT;
 ALTER TABLE cs2.advice ADD COLUMN IF NOT EXISTS told_at     TIMESTAMPTZ;
+
+-- Where a line's team strength came from (price.py, since 11 Nov 2026):
+-- 'betano' = Betano's own map-winner price, the model only shaping the map;
+-- 'model' = the model's rating, where Betano had no winner price. advice.py
+-- tips only 'betano' lines. m_model keeps the model's own rating to compare.
+ALTER TABLE cs2.priced ADD COLUMN IF NOT EXISTS m_from  TEXT;
+ALTER TABLE cs2.priced ADD COLUMN IF NOT EXISTS m_model NUMERIC;

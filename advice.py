@@ -4,7 +4,10 @@
 
 The rules, as for the tennis tips:
 
-  - the model's chance is blended 3:1 with Betano's own (margin taken out),
+  - team strength on each map is Betano's own (its map-winner price; see
+    price.py), so a tip comes from the shape of the map, never from the model
+    rating a team differently; the chance is then blended 3:1 with Betano's own
+    for the line itself (margin taken out),
     so a tip needs the model AND some room against the market;
   - a tip needs EDGE (+10%) on that blended chance, odds between MIN_ODDS and
     MAX_ODDS, and a price on both sides of the line (to take the margin out).
@@ -59,7 +62,8 @@ CANDIDATES = """
         ON (o.bookmaker, o.event_id, o.market, o.map_num) = (p.bookmaker, p.event_id, p.market, p.map_num)
        AND ((p.market <> 'handicap' AND o.team = p.team AND o.line = p.line AND o.side <> p.side)
          OR (p.market = 'handicap' AND o.team <> p.team AND o.line = -p.line))
-     WHERE e.kickoff > now() AND p.market = ANY(%s)"""
+     WHERE e.kickoff > now() AND p.market = ANY(%s)
+       AND p.m_from = 'betano'      -- strength from Betano's own map price (11 Nov 2026)"""
 
 
 def main():
