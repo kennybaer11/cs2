@@ -69,6 +69,14 @@ no tips are given yet; the admin page shows every line and the scoreboard -
 the model's log-loss against Betano's own probability with its margin taken
 out, and flat-stake results on lines the model rated +10% or better.
 
+```bash
+python compare.py           # settled lines: own team ratings v Betano's map price as the strength
+```
+
+Since 11 Nov 2026 a map's strength comes from Betano's map price and the model
+only shapes the score. `compare.py` checks that choice on every settled line;
+on 20 Nov (42 matches) the own ratings lost at every blend weight.
+
 ## Tips
 
 ```bash
