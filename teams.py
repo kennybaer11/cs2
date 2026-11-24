@@ -19,7 +19,10 @@ CHUNK = 150
 
 
 def resolve(keys: list[str]) -> dict[str, tuple[str | None, str | None]]:
-    out = {}
+    # A key with wikitext markup ('housebets<!--' opened a comment) would swallow
+    # every key rendered after it in its batch: such a key resolves to nothing.
+    out = {k: (None, None) for k in keys if re.search(r"[<>{}\[\]|]", k)}
+    keys = [k for k in keys if k not in out]
     for i in range(0, len(keys), CHUNK):
         chunk = keys[i:i + CHUNK]
         text = "\n".join(f"@@{k}@@{{{{Team|{k}}}}}" for k in chunk)

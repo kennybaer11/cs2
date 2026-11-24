@@ -247,7 +247,8 @@ def _team(v: str) -> str | None:
     if not t:
         return None
     p = _params(t[0])
-    team = (p.get("template") or p.get("1") or "").strip().lower()
+    raw = re.sub(r"<!--.*?(?:-->|$)", "", p.get("template") or p.get("1") or "", flags=re.S)
+    team = raw.strip().lower()
     return None if team in ("", "tbd", "tba", "bye") else team
 
 

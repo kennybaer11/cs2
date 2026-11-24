@@ -42,6 +42,10 @@ def norm(name: str) -> str:
     return re.sub(r"[^a-z0-9]+", "", s)
 
 
+# Bookmaker names that no Liquipedia key or title matches: bookmaker -> Liquipedia.
+ALIAS = {"Natus Vincere Juniors": "Natus Vincere Junior"}
+
+
 def team_index(conn) -> dict[str, str]:
     """normalised name -> team page, from page titles and template names."""
     idx = {}
@@ -51,6 +55,9 @@ def team_index(conn) -> dict[str, str]:
             for n in (page, name, key):
                 if n:
                     idx.setdefault(norm(n), page)
+    for bk, lp in ALIAS.items():
+        if norm(lp) in idx:
+            idx.setdefault(norm(bk), idx[norm(lp)])
     return idx
 
 

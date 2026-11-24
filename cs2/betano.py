@@ -106,6 +106,33 @@ def _which_team(prefix: str, event: dict) -> int | None:
     return hits[0] if len(hits) == 1 else None
 
 
+def _prefix(market_name: str) -> str:
+    return market_name.split(" Celkový")[0].strip()
+
+
+def _team_rounds_names(markets: list[dict], event: dict) -> dict[tuple[str, str], int]:
+    """{(map number, name in the title): team} for the one-team rounds markets.
+    Betano sometimes titles a team by another name ('PARIVISION' for PVISION,
+    a sponsor's, a team it replaced). A map has one such market per team, so
+    when one of its two names is a team, the other name is the opponent."""
+    names: dict[str, set[str]] = {}
+    for m in markets:
+        mm = _MAP.search(m.get("name", ""))
+        if MARKETS.get(str(m.get("type"))) == "team_rounds" and mm:
+            names.setdefault(mm.group(1), set()).add(_prefix(m["name"]))
+    out = {}
+    for mp, ns in names.items():
+        found = {n: _which_team(n, event) for n in ns}
+        known = {t for t in found.values() if t}
+        if len(ns) == 2 and len(known) == 1:
+            other = 3 - known.pop()
+            found = {n: t or other for n, t in found.items()}
+        for n, t in found.items():
+            if t:
+                out[(mp, n)] = t
+    return out
+
+
 def event_odds(event: dict) -> list[dict]:
     """Every selection of the round markets, one row each."""
     path = "/api" + event["url"]
@@ -114,6 +141,7 @@ def event_odds(event: dict) -> list[dict]:
     alls = [t["id"] for t in tabs if t.get("type") in ("all", "allmarkets")]
     ev = _get(f"{path}?bt={alls[0]}")["event"] if alls else data.get("event", {})
     rows = []
+    teams_of = _team_rounds_names(ev.get("markets", []), event)
     for m in ev.get("markets", []):
         kind = MARKETS.get(str(m.get("type")))
         mm = _MAP.search(m.get("name", ""))
@@ -121,7 +149,7 @@ def event_odds(event: dict) -> list[dict]:
             continue
         team = None
         if kind == "team_rounds":
-            team = _which_team(m["name"].split(" Celkový")[0], event)
+            team = teams_of.get((mm.group(1), _prefix(m["name"])))
             if team is None:
                 log.warning("%s: no team for market %r", event["url"], m["name"])
                 continue
