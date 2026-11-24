@@ -17,6 +17,7 @@ message, so a failed send is retried on the next run.
 import argparse
 import html
 import logging
+import math
 import os
 import sys
 from zoneinfo import ZoneInfo
@@ -55,6 +56,14 @@ def bet_text(market, team, side, line, t1, t2):
     return f"{who + ' ' if who else ''}{side.upper()} {line:.1f}"
 
 
+def floor_odds(r) -> float | None:
+    """The lowest odds at which the tip still has value: 1 / its chance,
+    rounded up. Betano's price often drops after a tip; above this the bet is
+    still worth placing, below it skip it."""
+    p = float(r["p_model"] or 0)
+    return math.ceil(100 / p) / 100 if p > 0 else None
+
+
 def describe(r, changed=False):
     e = html.escape
     start = r["kickoff"].astimezone(PRAGUE)
@@ -63,7 +72,9 @@ def describe(r, changed=False):
     def tip(text, rating, odds=None):
         if not text:
             return "no bet"
-        out = f"<b>{e(text)}</b>" + (f" @ {odds:.2f}" if odds else "")
+        low = floor_odds(r) if odds else None
+        out = (f"<b>{e(text)}</b>" + (f" @ {odds:.2f}" if odds else "")
+               + (f" (down to {low:.2f})" if low and low < odds else ""))
         return out + (f" · stake {rating}/10" if rating else "")
 
     out = [f"<b>{e(r['team1'])} v {e(r['team2'])}</b>",
@@ -98,7 +109,8 @@ def build(rows, changed=False):
     else:
         header = f"🎮 <b>New CS2 tips</b> - {n}"
         footer = ("\n\n<i>CS2 round lines at +10% value or more, at most one per map. A new model, "
-                  f"not yet proven against Betano - small stakes.</i>\n<a href=\"{SITE}\">CS2 tips</a>")
+                  f"not yet proven against Betano - small stakes. \"Down to\" is the lowest price "
+                  f"still worth taking if the odds drop.</i>\n<a href=\"{SITE}\">CS2 tips</a>")
     messages, current = [], header
     for r in rows:
         block = "\n\n" + describe(r, changed)
