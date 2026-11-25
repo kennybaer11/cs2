@@ -86,7 +86,8 @@ def describe(r, changed=False):
             m, t, s, ln = r["told_bet"].split("|")
             was = bet_text(m, int(t), s, float(ln), r["team1"], r["team2"])
         out.append(f"{tip(was, r['told_rating'])} → "
-                   f"{tip(now if r['backed'] else None, r['rating'], float(r['odds']))}")
+                   f"{tip(now if r['backed'] else None, r['rating'], float(r['odds']))} · "
+                   f"{BOOKS.get(r['bookmaker'], r['bookmaker'])}")
     else:
         out.append(f"{tip(now, r['rating'], float(r['odds']))} · edge {float(r['edge']):+.1%} · "
                    f"{BOOKS.get(r['bookmaker'], r['bookmaker'])}")
