@@ -110,16 +110,19 @@ def main():
                   p_model=EXCLUDED.p_model, p_raw=EXCLUDED.p_raw, edge=EXCLUDED.edge,
                   rating=EXCLUDED.rating, backed=true, code_version=EXCLUDED.code_version,
                   advised_at=now()
-                WHERE cs2.advice.kickoff > now() AND NOT cs2.advice.placed""",
+                WHERE cs2.advice.kickoff > now() AND NOT cs2.advice.placed
+                  AND cs2.advice.told_at IS NULL""",  # announced: locked, like placed
                         (bk, ev, slot, kickoff, league, t1, t2, t["map_num"], t["market"],
                          t["team"], t["side"], t["line"], t["odds"], t["p"], t["p_raw"],
                          t["edge"], t["rating"], version))
 
-        # Advised before, not now: keep the last advice, marked withdrawn.
+        # Advised before, not now: keep the last advice, marked withdrawn - unless
+        # Telegram has announced it: the announcement is the bet, sent once and
+        # never revised, so the site and the record keep what was sent.
         keep = [f"{bk}|{ev}|{slot}" for bk, ev, slot in best]
         cur.execute("""
             UPDATE cs2.advice SET backed = false, advised_at = now()
-             WHERE backed AND kickoff > now() AND NOT placed
+             WHERE backed AND kickoff > now() AND NOT placed AND told_at IS NULL
                AND NOT (bookmaker || '|' || event_id || '|' || slot = ANY(%s))""", (keep,))
         withdrawn = cur.rowcount
 

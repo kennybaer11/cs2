@@ -2,16 +2,15 @@
 """Telegram messages for the CS2 tips - the twin of the tennis notify.py: same
 bot, same chat, with a 🎮 so the three sports are told apart.
 
-    python notify.py             announce new tips and changed ones
+    python notify.py             announce new tips
     python notify.py --dry-run   print what would be sent, send nothing
     python notify.py --test      one message, to check the wiring
 
-A tip is rewritten on every run until its match starts, so an announcement is
-a snapshot: a tip can appear, move to another line or market on the same map,
-change stake, or be withdrawn. cs2.advice remembers what Telegram was last
-told (told_bet, told_rating, told_at), and the second kind of message reports
-the difference. Nothing is marked as told until Telegram has accepted the
-message, so a failed send is retried on the next run.
+Each tip is announced once and never revised. Until then advice.py may move
+or withdraw it unseen; once Telegram has accepted the message (told_at), the
+tip is locked like a placed one, so the site and the record keep what was
+sent. Nothing is marked as told until Telegram has accepted it, so a failed
+send is retried on the next run.
 """
 
 import argparse
@@ -153,26 +152,22 @@ def main():
     from cs2 import db
     conn = db.connect()
     fresh = fetch(conn, "told_at IS NULL AND backed")
-    moved = fetch(conn, f"""told_at IS NOT NULL
-        AND ((CASE WHEN backed THEN {BET} END) IS DISTINCT FROM told_bet
-             OR (backed AND abs(COALESCE(rating, 0) - COALESCE(told_rating, 0)) >= {RATING_STEP}))""")
-    if not (fresh or moved):
-        log.info("No new CS2 tip, nothing changed.")
+    if not fresh:
+        log.info("No new CS2 tip.")
         return 0
-    messages = (build(fresh) if fresh else []) + (build(moved, changed=True) if moved else [])
+    messages = build(fresh)
     if args.dry_run or not (token and chat):
         if not args.dry_run:
-            log.info("TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID not set - %d new and %d changed "
-                     "tip(s) left unannounced.", len(fresh), len(moved))
+            log.info("TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID not set - %d tip(s) left unannounced.",
+                     len(fresh))
         for m in messages:
             print(m, end="\n\n")
         return 0
     for m in messages:
         api("sendMessage", token, chat_id=chat, text=m, parse_mode="HTML",
             disable_web_page_preview="true")
-    mark_told(conn, fresh + moved)
-    log.info("Announced %d new and %d changed tip(s) in %d message(s).",
-             len(fresh), len(moved), len(messages))
+    mark_told(conn, fresh)
+    log.info("Announced %d tip(s) in %d message(s).", len(fresh), len(messages))
     return 0
 
 
